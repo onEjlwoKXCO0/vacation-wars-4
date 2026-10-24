@@ -31,6 +31,7 @@ function newCode() {
 
 const store = createStore();
 let storeOk = false;
+let lastSaveError = '';
 
 /** Save a crew (state + reconnect tokens). Never runs twice at once for the same crew. */
 async function saveRoom(code) {
@@ -42,7 +43,7 @@ async function saveRoom(code) {
     const roomTokens = [...tokens].filter(([, v]) => v.code === code).map(([t, v]) => [t, v.pid]);
     await store.save(code, { ...entry.host.snapshot(), tokens: roomTokens });
     entry.savedVersion = version;
-  } catch (e) { console.warn(`[room ${code}] save failed: ${e.message}`); }
+  } catch (e) { lastSaveError = e.message; console.warn(`[room ${code}] save failed: ${e.message}`); }
   finally { entry.lastSave = Date.now(); entry.saving = false; }
 }
 
@@ -107,7 +108,7 @@ async function findRoom(code) {
 const server = http.createServer(async (req, res) => {
   try {
     const url = new URL(req.url, 'http://x');
-    if (url.pathname === '/healthz') { res.writeHead(200, { 'content-type': 'text/plain' }); return res.end(`ok ${rooms.size} rooms · saves: ${storeOk ? store.kind : 'off'}`); }
+    if (url.pathname === '/healthz') { res.writeHead(200, { 'content-type': 'text/plain' }); return res.end(`ok ${rooms.size} rooms · ${[...rooms.values()].reduce((n, e) => n + e.host.clients.size, 0)} online · saves: ${storeOk ? store.kind : 'off'}${lastSaveError ? ` · last save error: ${lastSaveError}` : ''}`); }
     let path = normalize(decodeURIComponent(url.pathname)).replace(/^(\.\.[/\\])+/, '');
     if (path === '/' || !extname(path)) path = '/index.html';
     const base = path.startsWith('/assets/') ? ASSETS : PUBLIC;

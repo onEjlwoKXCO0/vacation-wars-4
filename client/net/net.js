@@ -68,6 +68,7 @@ export class SocketNet extends BaseNet {
       try { msg = JSON.parse(e.data); } catch { return; }
       if (msg.t === 'welcome') {
         this.pid = msg.pid; this.code = msg.code; this.backoff = 500;
+        this.opts = { code: msg.code }; // reconnects go back to THIS crew (never create a new one)
         store.set('session', { code: msg.code, token: msg.token });
         this.setStatus('online');
         this.send({ t: 'ping', c: Date.now() });
