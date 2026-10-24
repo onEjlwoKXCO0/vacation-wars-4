@@ -58,10 +58,13 @@ test('boarding requires a role; everyone aboard starts the auto-launch countdown
 
 test('partners, private upstairs access and partner-trip privacy', () => {
   const t = setup({ players: 3 }); // p0 portugal, p1 macedonia, p2 poland
+  // any two crewmates can be partners, but it has to be mutual
+  t.ok('p0', { type: 'partner:set', partnerId: 'p1' });
+  assert.equal(partnerOf(t.room, 'p0'), null, 'not mutual yet');
+  assert.equal(canEnterUpstairs(t.room, 'p0', 'macedonia'), false);
+  t.ok('p0', { type: 'partner:set', partnerId: null });
+  // the known couple nations (Macedonia ♥ Poland) accept each other automatically
   t.ok('p2', { type: 'partner:set', partnerId: 'p1' });
-  assert.equal(partnerOf(t.room, 'p2'), null, 'not mutual yet');
-  assert.equal(canEnterUpstairs(t.room, 'p1', 'poland'), false);
-  t.ok('p1', { type: 'partner:set', partnerId: 'p2' });
   assert.equal(partnerOf(t.room, 'p2'), 'p1');
   assert.equal(canEnterUpstairs(t.room, 'p1', 'poland'), true, 'partner may go upstairs');
   assert.equal(canEnterUpstairs(t.room, 'p0', 'poland'), false, 'others may not');

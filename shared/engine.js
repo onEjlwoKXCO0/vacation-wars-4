@@ -1118,6 +1118,8 @@ function setPartner(room, pid, partnerId) {
   if (!q || q.id === pid) throw new GameError('Choose a crew member as your partner.');
   p.partnerId = q.id;
   if (q.isBot && !partnerOf(room, q.id)) q.partnerId = pid; // bots accept proposals
+  // the crew's known couples (Macedonia ♥ Poland, Morocco ♥ Portugal) pair up automatically, whoever joined first
+  else if (!q.partnerId && COUPLE_NATIONS[p.nationality] === q.nationality) q.partnerId = pid;
 }
 function uniqueValid(list) {
   if (!Array.isArray(list)) return [];
