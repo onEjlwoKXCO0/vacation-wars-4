@@ -6,6 +6,8 @@ You need 3 free accounts: **GitHub** (stores the code), **Render** (runs the ser
 
 ---
 
+> **Live:** https://vacation-wars-4.onrender.com (repo `onEjlwoKXCO0/vacation-wars-4`, branch `main` — every push redeploys).
+
 ## 1. Put the code on GitHub
 
 1. Create an account on <https://github.com> (or log in).
@@ -29,7 +31,7 @@ Render's free plan erases its disk whenever the server sleeps or restarts. Upsta
 ## 3. Deploy on Render
 
 1. Create an account on <https://render.com> and connect your GitHub account when asked.
-2. **New +** → **Blueprint** → pick the `vacation-wars-4` repository.
+2. **New +** → **Blueprint** → pick the `vacation-wars-4` repository. (Or **New +** → **Web Service**: build `npm install && npm run build`, start `npm run serve`, instance **Free**, env `NODE_VERSION=22` + the two Upstash values without quotes, health check `/healthz`.) Render may ask for a card to verify you, even on the free plan; nothing is charged on Free.
 3. Render reads `render.yaml` and asks for the two values: paste `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` → **Apply**.
 4. Wait for the build (2–4 min). Your link appears at the top of the service page: `https://vacation-wars-4.onrender.com` (or similar).
 5. Check: open `…onrender.com/healthz` — it should say `ok 0 rooms · saves: Upstash Redis`.
