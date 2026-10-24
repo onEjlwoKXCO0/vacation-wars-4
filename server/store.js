@@ -60,6 +60,9 @@ class UpstashStore {
 }
 
 export function createStore(env = process.env) {
-  if (env.UPSTASH_REDIS_REST_URL && env.UPSTASH_REDIS_REST_TOKEN) return new UpstashStore(env.UPSTASH_REDIS_REST_URL, env.UPSTASH_REDIS_REST_TOKEN);
+  // values pasted from Upstash's ".env" tab may keep their quotes or spaces: clean them
+  const clean = (v) => String(v || '').trim().replace(/^["']|["']$/g, '').trim();
+  const url = clean(env.UPSTASH_REDIS_REST_URL), token = clean(env.UPSTASH_REDIS_REST_TOKEN);
+  if (url && token) return new UpstashStore(url, token);
   return new FileStore(env.DATA_DIR || new URL('../data/', import.meta.url).pathname);
 }
