@@ -256,6 +256,8 @@ export function createGameUI(root, { net, ship, getView }) {
   const timer = setInterval(() => {
     const v = getView(); const el = banner.querySelector('[data-timer]');
     if (v && v.game && el) { const left = v.game.stageEndsAt - net.serverNow(); el.textContent = fmtTime(left); el.classList.toggle('urgent', left < 15000); }
+    // online, nothing is sent when the intro simply runs out: re-render ourselves at that moment
+    if (v && v.game && root.classList.contains('in-intro') !== (net.serverNow() < v.game.introUntil)) update();
   }, 250);
 
   return { update, destroy() { clearInterval(timer); layer.remove(); } };
