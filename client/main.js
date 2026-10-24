@@ -46,6 +46,7 @@ function title(error) {
     onChoose: async (choice) => {
       close();
       try { await connect(choice); } catch (e) {
+        console.error('[vw4] connect failed', e);
         if (choice.resume) store.del('session');
         title(e.message || 'Could not reach the Moon.');
       }
@@ -75,6 +76,8 @@ async function connect(choice) {
       onSubmit: async (draft) => {
         const res = await net.act({ type: 'profile:set', ...draft });
         if (!res.ok) { toast(res.error, 'bad'); return false; }
+        // online, the server's new state arrives a moment after the answer: wait for it before entering the Moon
+        for (let i = 0; i < 50 && !S.view.players.find((p) => p.id === S.view.you)?.onboarded; i++) await new Promise((r) => setTimeout(r, 60));
         resolve(); return true;
       },
     }));
@@ -285,7 +288,7 @@ function updateObjective() {
     const emb = BUILDINGS.find((b) => b.nation === nation);
     const steps = [
       { label: "Mahmoud's 1-minute briefing", done: tutorialSeen(), action: 'tutorial', actionLabel: '▶ Watch' },
-      { label: `Visit your embassy (${emb.label})`, done: !!me.embassyVisited },
+      { label: emb ? `Visit your embassy (${emb.label})` : 'Visit your embassy', done: !!me.embassyVisited },
       { label: 'Choose your role at the Role Market', done: !!v.me.role },
       { label: 'Board the spacecraft on the launch pad', done: !!me.boarded },
     ];
