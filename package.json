@@ -1,0 +1,25 @@
+{
+  "name": "vacation-wars-4",
+  "version": "0.1.0",
+  "private": true,
+  "description": "VACATION WARS 4 \u2014 a multiplayer Moon-campus game that decides where the crew goes on holiday.",
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.js",
+    "build:demo": "node scripts/build.js --demo",
+    "start": "node scripts/build.js && node server/index.js",
+    "dev": "node scripts/build.js --watch & node --watch server/index.js",
+    "test": "node --test tests/*.test.js",
+    "serve": "node server/index.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "ws": "^8.18.0",
+    "esbuild": "^0.28.0",
+    "three": "^0.186.0",
+    "topojson-client": "^3.1.0",
+    "world-atlas": "^2.0.2"
+  }
+}

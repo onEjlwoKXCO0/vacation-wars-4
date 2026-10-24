@@ -1,0 +1,168 @@
+// Branching conversations with the Moon residents. Pure data: the client renders them as a
+// visual-novel dialogue box with multiple-choice answers.
+//   node: { who?, mood?, say: string | (s) => string, choices?: [{ t, go?, deal?, accept?, fx?, action? }], next? }
+//   `go: null` (or missing) ends the conversation. `deal` is sent to the server as 'npc:deal'.
+//   s = { phase, francePromise, vip, bracelet, premonition, premonitionLine }
+
+import { AMBIENT_TALKS } from './talksAmbient.js';
+
+export const TALKS = {
+  alessandro: {
+    start: () => 'hello',
+    nodes: {
+      hello: { mood: 'happy', say: 'Benvenuti nella Moon Arcade! I\'m Alessandro, chef de salle. Quiz, flags, duels — and the most beautiful Earth on the Moon. What do you need?',
+        choices: [{ t: 'Show me around.', go: 'tour' }, { t: 'How much can I win?', go: 'money' }, { t: 'Alessandro… talk to me.', go: 'personal' }, { t: 'Let me play!', action: 'arcade' }] },
+      tour: { mood: 'smug', say: 'Left: the QUIZ booth and the FLAG MEMORY table. Right: the GLOBE DUEL cabinet and the leaderboard. In the middle: our live Earth — tap any flag. Which one first?',
+        choices: [{ t: 'The quiz?', go: 'quiz' }, { t: 'Flag Memory?', go: 'memory' }, { t: 'Globe Duel?', go: 'duel' }, { t: 'The big Earth?', go: 'globe' }] },
+      quiz: { mood: 'happy', say: '5 questions, 20 seconds each — more than 900 questions on capitals, dishes, places, currencies and fun facts. 0–1 right costs 15 VC, 2 costs 5, 3 is free, 4 and 5 win. Hard pays more and costs less.',
+        choices: [{ t: 'And Flag Memory?', go: 'memory' }, { t: 'Let me try!', action: 'arcade' }, { t: 'Thanks.', go: 'bye' }] },
+      memory: { mood: 'smug', say: 'Sixteen cards, eight pairs of flags. Turn two at a time. Perfect is 8 tries: up to 10 tries pays 20 VC, up to 13 pays 10, up to 17 is free, more costs a little. Max 26 tries.',
+        choices: [{ t: 'And the Globe Duel?', go: 'duel' }, { t: 'Let me try!', action: 'arcade' }, { t: 'Thanks.', go: 'bye' }] },
+      duel: { mood: 'happy', say: 'Two countries, one question: warmer in July? cheaper per day? faster to fly to from YOUR airport? further north? Five duels, real data from the game. Great training for the wheels.',
+        choices: [{ t: 'And the Earth?', go: 'globe' }, { t: 'Let me try!', action: 'arcade' }, { t: 'Thanks.', go: 'bye' }] },
+      globe: { mood: 'happy', say: 'Our pride. Every flag is clickable: three fun facts, the most beautiful place, what to eat, the weather month by month, your flight time. Perfect to prepare your wishlist.',
+        choices: [{ t: 'Open the Earth!', action: 'globe' }, { t: 'Later.', go: 'bye' }] },
+      money: { mood: 'smug', say: 'The arcade is for glory, not to get rich. A perfect game is about one chip (+15 to +30 VC), a bad one costs 5 to 15. And your net is capped at ±100 VC each time you are on the Moon. The Black Market costs 400 to 700 — so don\'t dream, play.',
+        choices: [{ t: 'Fair. Let me play.', action: 'arcade' }, { t: 'OK.', go: 'bye' }] },
+      personal: { mood: 'smug', say: 'Honestly? You look tired, my friend. Two options. One: we fly to Barcelona to forget everything. Two: we go smoke a chicha with the tonton.',
+        choices: [{ t: 'Barcelona, let\'s forget! ✈️', go: 'barcelona' }, { t: 'Chicha with the tonton 💨', go: 'chicha' }, { t: 'Who is the tonton?', go: 'tonton' }] },
+      barcelona: { mood: 'happy', say: 'Perfetto. Sagrada Família at sunset, tapas at 11 pm, the beach at 4 am. What happens in Barcelona… stays on the Moon. (Tip: put 🇪🇸 Spain on your wishlist.)',
+        choices: [{ t: 'Haha, deal.', go: 'bye' }, { t: 'And the chicha?', go: 'chicha' }] },
+      chicha: { mood: 'smug', say: 'Bella scelta. The tonton is in the purple container, south-west. Tell him Alessandro sent you — he prepares the mint one. But after the game, eh? The shop opens at the end.',
+        choices: [{ t: 'Who is he again?', go: 'tonton' }, { t: 'Perfect.', go: 'bye' }] },
+      tonton: { mood: 'happy', say: 'Hicham! From the Black Market. Everybody calls him le tonton. He sells possibilities… and the best chicha on the Moon.',
+        choices: [{ t: 'Chicha it is.', go: 'chicha' }, { t: 'Barcelona instead.', go: 'barcelona' }] },
+      bye: { mood: 'happy', say: 'Ciao bello! The machines are warm — come back whenever you want.', choices: [{ t: 'Ciao!' }] },
+    },
+  },
+
+  alice_nico: {
+    start: (s) => (s.francePromise ? 'promised' : 'hello'),
+    nodes: {
+      hello: { who: 'alice', mood: 'happy', say: '« Bonjour ! Venez en France, c\'est le meilleur pays du monde ! » — Come to France, the best country in the world!',
+        choices: [{ t: 'Why France?', go: 'why' }, { t: 'Hmm… I\'m not sure.', go: 'doubt' }, { t: 'No thanks.', go: 'no' }] },
+      why: { who: 'nico', mood: 'happy', say: 'Good food, culture, zero stress. Honestly, a croissant in the morning changes a life. 🥐',
+        choices: [{ t: 'What would we do there?', go: 'what' }, { t: 'Sounds good!', go: 'ask' }, { t: 'Still not convinced.', go: 'doubt' }] },
+      what: { who: 'alice', mood: 'happy', say: 'Paris for the lights, Provence for the lavender, the Alps for raclette, Biarritz for the waves… and Nico gets lost every single day.',
+        choices: [{ t: 'Haha, OK, I like it.', go: 'ask' }, { t: 'Nico gets lost?', go: 'lost' }] },
+      lost: { who: 'nico', mood: 'smug', say: 'I don\'t get lost. I discover. France isn\'t just a country, it\'s a state of mind.',
+        choices: [{ t: 'Fair enough.', go: 'ask' }] },
+      doubt: { who: 'nico', mood: 'shock', say: 'OK, maybe it\'s a bit cliché… but it\'s true anyway! Come on, we take you to Paris? Just once, promise!',
+        choices: [{ t: 'Tell me more.', go: 'why' }, { t: 'Ask me properly.', go: 'ask' }, { t: 'Still no.', go: 'no' }] },
+      ask: { who: 'alice', mood: 'happy', say: 'So… do you promise to put 🇫🇷 France on your wishlist? We\'ll even prefill it for you.',
+        choices: [{ t: 'Promise! 🥐', deal: 'france', accept: true, go: 'yes', fx: 'confetti' }, { t: 'Maybe later.', go: 'later' }, { t: 'Not this time.', go: 'no' }] },
+      yes: { who: 'nico', mood: 'happy', say: 'Magnifique ! France is now on your wishlist — it shows up when you board. Bon voyage ! 🇫🇷',
+        choices: [{ t: 'Merci ! 💙🤍❤️' }] },
+      later: { who: 'alice', mood: 'happy', say: 'We\'ll be right here, with warm croissants. The café never closes.', choices: [{ t: 'See you!' }] },
+      no: { who: 'nico', mood: 'shock', say: 'Ah… dommage. Our café is always open if you change your mind.',
+        choices: [{ t: 'Wait — tell me about France.', go: 'why' }, { t: 'Bye!' }] },
+      promised: { who: 'alice', mood: 'happy', say: 'Our favourite traveller! France is still on your list, right? 🥐',
+        choices: [{ t: 'Of course! 🇫🇷', go: 'vive', fx: 'hearts' }, { t: 'Actually… I changed my mind.', go: 'regret' }] },
+      regret: { who: 'nico', mood: 'shock', say: 'Non ! Tell us it\'s a joke…',
+        choices: [{ t: 'Just kidding — France stays.', go: 'vive', fx: 'hearts' }, { t: 'Sorry, I break the promise.', deal: 'france', accept: false, go: 'sad' }] },
+      vive: { who: 'nico', mood: 'happy', say: 'Vive la France ! Vive toi !', choices: [{ t: '🥐' }] },
+      sad: { who: 'alice', mood: 'shock', say: '…We\'ll survive. Barely. France is off your wishlist.', choices: [{ t: 'Sorry…' }] },
+    },
+  },
+
+  imane: {
+    start: (s) => (s.vip ? 'loyal' : 'hello'),
+    nodes: {
+      hello: { mood: 'smug', say: 'Welcome to the Club Interplanétaire, darling. A great queen never walks alone.',
+        choices: [{ t: 'Who are you?', go: 'who' }, { t: 'What is VIP?', go: 'vip' }, { t: 'I\'m just here to dance.', go: 'dance', fx: 'dance' }] },
+      who: { mood: 'smug', say: 'Imane. But up here they call me Cléopâtre. I don\'t just dream, I have a plan — and this plan is ours.',
+        choices: [{ t: 'What\'s the plan?', go: 'vip' }, { t: 'Nice to meet you, my queen.', go: 'vip' }] },
+      vip: { mood: 'happy', say: 'VIP gets the throne, the best table, and a crown 👑 next to your name — even in the final contract. The price? You obey me for 3 days of the holiday.',
+        choices: [{ t: 'Deal. I\'m in 👑', deal: 'vip', accept: true, go: 'yes', fx: 'crown' }, { t: '3 days?! Doing what?', go: 'what' }, { t: 'No, thank you.', go: 'no' }] },
+      what: { mood: 'smug', say: 'Breakfast in bed — for me. Carrying my bags. Choosing the restaurant… my restaurant. Nothing illegal. Mostly.',
+        choices: [{ t: 'OK, deal 👑', deal: 'vip', accept: true, go: 'yes', fx: 'crown' }, { t: 'Too risky.', go: 'no' }] },
+      yes: { mood: 'happy', say: 'Wise choice. Life is too short for bad plans. Welcome to my court — it\'s written in the contract now.', choices: [{ t: 'Yes, my queen.' }] },
+      no: { mood: 'smug', say: 'Your loss, darling. The throne waits for no one.', choices: [{ t: 'Wait… tell me again.', go: 'vip' }, { t: 'Bye.' }] },
+      dance: { mood: 'happy', say: 'Then go — the floor is yours. Show me something.', choices: [{ t: '💃' }] },
+      loyal: { mood: 'smug', say: 'My VIP is back. Remember: 3 days of obedience, darling. 👑',
+        choices: [{ t: 'Yes, my queen.', go: 'good', fx: 'dance' }, { t: 'Can I cancel?', go: 'cancel' }] },
+      cancel: { mood: 'shock', say: 'Cancel? A queen\'s contract is written in gold… Fine. But you lose the throne.',
+        choices: [{ t: 'Keep my VIP.', go: 'good' }, { t: 'Cancel it.', deal: 'vip', accept: false, go: 'cancelled' }] },
+      good: { mood: 'happy', say: 'Good. Now dance for your queen.', choices: [{ t: '💃' }] },
+      cancelled: { mood: 'smug', say: 'Done. No crown, no throne, no obedience. Boring, but free.', choices: [{ t: 'Bye, Cléopâtre.' }] },
+    },
+  },
+
+  plami: {
+    start: (s) => (s.bracelet ? 'back' : 'hello'),
+    nodes: {
+      hello: { mood: 'happy', say: 'Heyyy! Ready for a new adventure?',
+        choices: [{ t: 'Yes!! 🙌', go: 'gift' }, { t: 'Not really, I\'m stressed.', go: 'stress' }, { t: 'What is this place?', go: 'place' }] },
+      stress: { mood: 'happy', say: 'Don\'t worry, everything will be fine. We\'ve got this! Breathe in… and out. 🌿', choices: [{ t: '…Better.', go: 'gift' }] },
+      place: { mood: 'happy', say: 'The Biodome! The only garden on the Moon. I come here with a little tea to dream about the next trip.',
+        choices: [{ t: 'Dreaming of where?', go: 'dream' }, { t: 'So cute!', go: 'gift' }] },
+      dream: { mood: 'happy', say: 'Somewhere with sea and sun… but travelling isn\'t only seeing places, it\'s seeing yourself better.', choices: [{ t: 'That\'s beautiful.', go: 'gift' }] },
+      gift: { mood: 'happy', say: 'Wait, I made something for you — a flower bracelet. Good luck and happy holidays! 🌸',
+        choices: [{ t: 'Thank you, Plami! 💕', deal: 'bracelet', accept: true, go: 'thanks', fx: 'petals' }, { t: 'For me? Really?', deal: 'bracelet', accept: true, go: 'thanks', fx: 'petals' }] },
+      thanks: { mood: 'happy', say: 'It looks great on you! 🌸 shows next to your name now — and in the final contract.',
+        choices: [{ t: 'Hug Plami 🤗', go: 'hug', fx: 'hearts' }, { t: 'Bye!' }] },
+      hug: { mood: 'happy', say: '🤗 Life is more beautiful with a smile and a little tea.', choices: [{ t: '☕' }] },
+      back: { mood: 'happy', say: 'Heyyy, you\'re back! Still wearing the bracelet? 🌸',
+        choices: [{ t: 'Never taking it off.', go: 'tea', fx: 'hearts' }, { t: 'I need more luck…', go: 'luck' }] },
+      luck: { mood: 'smug', say: 'Luck is a mindset! …and maybe a Shield from Hicham\'s terminal. 😉', choices: [{ t: 'Haha, thanks!', go: 'tea' }] },
+      tea: { mood: 'happy', say: 'Life is more beautiful with a smile and a little tea. ☕', choices: [{ t: 'Bye, Plami!' }] },
+    },
+  },
+
+  moumanou: {
+    start: (s) => (s.premonition ? 'again' : 'hello'),
+    nodes: {
+      hello: { mood: 'smug', say: 'Sit down… I see things before they happen. Like a premonition.',
+        choices: [{ t: 'Tell me my future.', go: 'hand' }, { t: 'I don\'t believe in that.', go: 'doubt' }, { t: 'Who are you?', go: 'who' }] },
+      who: { mood: 'happy', say: 'Moumanou. The future isn\'t written, but it whispers to those who listen.', choices: [{ t: 'Then let\'s listen.', go: 'hand' }] },
+      doubt: { mood: 'smug', say: 'You doubt too much. The universe sends you signs — look closer.', choices: [{ t: 'OK… show me.', go: 'hand' }, { t: 'Bye.' }] },
+      hand: { mood: 'smug', say: 'Give me your hand… think of the holiday. Do you want to know where the wheel will send you?',
+        choices: [{ t: 'Yes — tell me 🔮', deal: 'premonition', accept: true, go: 'vision', fx: 'stars' }, { t: 'No, I prefer the surprise.', go: 'surprise' }] },
+      vision: { mood: 'shock', say: (s) => s.premonitionLine,
+        choices: [{ t: 'Will it come true?', go: 'true' }, { t: 'Thank you, Moumanou.' }] },
+      true: { mood: 'smug', say: 'My visions come true… often. At the very end, the contract will say if I was right.', choices: [{ t: '😶' }] },
+      surprise: { mood: 'happy', say: 'Wise. Surprises are the best part of travelling.', choices: [{ t: 'Bye!' }] },
+      again: { mood: 'smug', say: (s) => `You came back… the vision hasn't changed. ${s.premonitionLine}`,
+        choices: [{ t: 'Can you look again?', go: 'nochange' }, { t: 'Thank you.' }] },
+      nochange: { mood: 'smug', say: 'The future doesn\'t change just because you don\'t like it. 😌', choices: [{ t: 'Fine…' }] },
+    },
+  },
+
+  hicham: {
+    start: (s) => (s.phase === 'market' || s.phase === 'ended' ? 'shop' : 'hello'),
+    nodes: {
+      hello: { mood: 'smug', say: 'Officially? I sell cards. Unofficially? I sell possibilities…',
+        choices: [{ t: 'How do I raise my odds?', go: 'odds' }, { t: 'What possibilities?', go: 'powers' }, { t: 'Who is Joseph?', go: 'joseph' }, { t: 'Bye.' }] },
+      odds: { mood: 'smug', say: 'Simple. During each decision on the spacecraft, you put chips on the table. 1 chip = 50 VC = more weight for your option = a bigger slice of the wheel. You can take chips back until the timer ends.',
+        choices: [{ t: 'And the powers?', go: 'powers' }, { t: 'That\'s not cheap!', go: 'cheap' }] },
+      powers: { mood: 'happy', say: 'My terminal sits next to every decision: 🚫 Veto, 🛡️ Shield, 💣 Sabotage, 🎟️ Golden Ticket, ✖️2 Double Down… They act instantly. You pay in VC.',
+        choices: [{ t: 'How do chips work again?', go: 'odds' }, { t: 'Got it.', go: 'secret' }] },
+      cheap: { mood: 'smug', say: 'Trust me, I\'m not here to help you. I\'m here to profit.', choices: [{ t: 'Fair.', go: 'secret' }] },
+      joseph: { mood: 'smug', say: 'My supplier. Intergalactic traveller. Don\'t ask where the stuff comes from — he\'s by the launch pad.', choices: [{ t: 'OK…', go: 'secret' }] },
+      secret: { mood: 'smug', say: 'Shhh… this stays between us, yeah? And come back at the very end — that\'s when the real shop opens.', choices: [{ t: 'Deal.' }] },
+      shop: { mood: 'happy', say: 'There you are. The shop is open, my friend. You got the VC? Good. Let\'s make it interesting.',
+        choices: [{ t: '🕶️ Show me the goods', action: 'market' }, { t: 'What can I buy?', go: 'shopinfo' }, { t: 'Later.' }] },
+      shopinfo: { mood: 'smug', say: 'The real decisions of the trip: where we stay, the exact dates, the flights, one more day… Then the Airbnb, whole days to plan, perks like never driving. Pool coins with the crew — or buy the legendary RESTART with every coin you all have.',
+        choices: [{ t: '🕶️ Open the shop', action: 'market' }, { t: 'Later.' }] },
+    },
+  },
+
+  joseph: {
+    start: () => 'hello',
+    nodes: {
+      hello: { mood: 'happy', say: 'Don\'t worry, I\'ve got what you need. Just don\'t ask too many questions.',
+        choices: [{ t: 'Who are you?', go: 'who' }, { t: 'Any travel tips?', go: 'tips' }, { t: 'Where should we go?', go: 'where' }] },
+      who: { mood: 'smug', say: 'Joseph. Intergalactic traveller — and Hicham\'s official supplier. The world is a map, and I\'m filling it in.',
+        choices: [{ t: 'Hicham?', go: 'hicham' }, { t: 'Any tips?', go: 'tips' }] },
+      hicham: { mood: 'smug', say: 'Hicham told me about you. You\'re serious, you. His shop is in the south-west — the purple container.', choices: [{ t: 'Thanks.', go: 'tips' }] },
+      tips: { mood: 'happy', say: 'Tip from the road: a Shield is cheap, a Veto hurts. And countries you\'ve already visited get a malus — the wheel prefers new places.',
+        choices: [{ t: 'Good to know!', go: 'risk' }] },
+      where: { mood: 'smug', say: 'France? It\'s nice. But Morocco is the real thing. We don\'t go to the other end of the world for nothing — every trip has a price.',
+        choices: [{ t: 'Haha, noted.', go: 'risk' }] },
+      risk: { mood: 'smug', say: 'Ready to take a risk? Good deals don\'t come without risk.', choices: [{ t: 'Always.' }, { t: 'Never!' }] },
+    },
+  },
+
+  // The invented residents (Vega, Orion, B-0P, Z-3D, Nova, Rex, the bots and the dancers) live in talksAmbient.js.
+  ...AMBIENT_TALKS,
+};
