@@ -19,6 +19,7 @@ export class RoomHost {
     this.botMem = new Map();
     this.botNav = new Map();
     this.lastEmote = new Map();
+    this.recentActs = new Map(); // pid → Map(actId → reply)
     this.sentVersion = -1;
     this.posDirty = false;
     this.lastActivity = now();
@@ -48,7 +49,9 @@ export class RoomHost {
     this.broadcastState(true);
   }
 
-  leave(pid) {
+  /** `send` = the connection that closed: an old, dead socket closing late must not kick its replacement. */
+  leave(pid, send) {
+    if (send && this.clients.get(pid) !== send) return;
     this.clients.delete(pid);
     if (this.room.players[pid]) setConnected(this.room, pid, false, this.now());
     this.broadcastState(true);
@@ -60,9 +63,15 @@ export class RoomHost {
     if (!msg || typeof msg !== 'object') return;
     this.lastActivity = this.now();
     if (msg.t === 'act') {
-      const res = applyAction(this.room, pid, msg.a, this.ctx());
       const send = this.clients.get(pid);
-      if (send) send(res.ok ? { t: 'ack', id: msg.id } : { t: 'err', id: msg.id, msg: res.error });
+      // the phone may resend an action after a reconnect: answer again, never apply twice
+      const seen = this.recentActs.get(pid) || new Map();
+      this.recentActs.set(pid, seen);
+      if (typeof msg.id === 'string' && seen.has(msg.id)) { if (send) send(seen.get(msg.id)); return; }
+      const res = applyAction(this.room, pid, msg.a, this.ctx());
+      const reply = res.ok ? { t: 'ack', id: msg.id } : { t: 'err', id: msg.id, msg: res.error };
+      if (typeof msg.id === 'string') { seen.set(msg.id, reply); if (seen.size > 60) seen.delete(seen.keys().next().value); }
+      if (send) send(reply);
       this.dispatchEvents(res.events);
       this.broadcastState();
       if (res.ok && msg.a.type === 'host:removePlayer') { this.positions.delete(msg.a.targetId); this.posDirty = true; }

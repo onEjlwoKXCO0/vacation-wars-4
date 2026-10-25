@@ -125,6 +125,8 @@ const server = http.createServer(async (req, res) => {
 const wss = new WebSocketServer({ server, path: '/ws', maxPayload: 64 * 1024 });
 
 wss.on('connection', (ws) => {
+  ws.isAlive = true;
+  ws.on('pong', () => { ws.isAlive = true; });
   let session = null; // { code, pid }
   const send = (msg) => { if (ws.readyState === 1) ws.send(JSON.stringify(msg)); };
   let msgCount = 0;
@@ -132,6 +134,7 @@ wss.on('connection', (ws) => {
 
   let joining = false;
   ws.on('message', async (raw) => {
+    ws.isAlive = true;
     if (++msgCount > 60) return; // simple flood guard
     let msg;
     try { msg = JSON.parse(raw); } catch { return; }
@@ -176,12 +179,19 @@ wss.on('connection', (ws) => {
 
   ws.on('close', () => {
     clearInterval(rate);
-    if (session && rooms.has(session.code)) rooms.get(session.code).host.leave(session.pid);
+    if (session && rooms.has(session.code)) rooms.get(session.code).host.leave(session.pid, send);
   });
 });
 
 // Keep-alive so proxies don't drop idle sockets.
-setInterval(() => { for (const ws of wss.clients) if (ws.readyState === 1) ws.ping(); }, 25000);
+// …and close sockets that stopped answering (phone asleep, network switched) so they don't linger.
+setInterval(() => {
+  for (const ws of wss.clients) {
+    if (ws.isAlive === false) { ws.terminate(); continue; }
+    ws.isAlive = false;
+    if (ws.readyState === 1) ws.ping();
+  }
+}, 20000);
 
 // Save everything before the host stops us (redeploy, sleep, Ctrl+C).
 let stopping = false;
